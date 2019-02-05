@@ -15,15 +15,14 @@ import java.util.Random;
 /**
  * Created by Andrey on 04.02.2019.
  */
-public class Start extends Application {
+public class Main extends Application {
     private Label scoreLabel;
-    private Circle circles[][] = new Circle[9][9];
-    private Color colorsOfCircles[][] = new Color[9][9];
+    private MyCircle circles[][] = new MyCircle[9][9];
     private static boolean startGame = true;
     private static boolean transport = false;
-    private Circle activateCircle = null;
+    private MyCircle activateCircle = null;
     private static int score = 0;  //текущий счет игры
-    private ArrayList<Circle> circlesToDelete = new ArrayList<>();
+    private ArrayList<MyCircle> circlesToDelete = new ArrayList<>();
     private static final int startXOfRectangle = 175; //начальная позиция квадрата по X
     private static int startYOfRectangle = 175; //начальная позиция квадрата по Y
 
@@ -68,18 +67,15 @@ public class Start extends Application {
 
     //создать начальные шары
     private void createAllCircles(Rectangle rectangle, int i, int j, Pane root) {
-        Circle circle = new Circle();
-        circle.setRadius(18);
-        circle.setCenterX(rectangle.getTranslateX() + 25);
-        circle.setCenterY(rectangle.getTranslateY() + 25);
-        root.getChildren().add(circle);
-        colorsOfCircles[i][j] = randomColor();
-        circle.setFill(colorsOfCircles[i][j]);
+        MyCircle circle = new MyCircle(rectangle.getTranslateX() + 25, rectangle.getTranslateY() + 25,
+                18, i, j, randomColor());
+        circle.setFill(circle.getColor());
         circle.toFront();
         circle.setOnMouseClicked(event -> {
             circleMouseClick(circle);
         });
         circles[i][j] = circle;
+        root.getChildren().add(circle);
     }
 
     //вернет рандомный цвет
@@ -95,93 +91,78 @@ public class Start extends Application {
     }
 
     //событие нажатия на круг
-    private void circleMouseClick(Circle circle) {
+    private void circleMouseClick(MyCircle thisCircle) {
         if (transport == false) {
-            activateCircle = circle;
+            activateCircle = thisCircle;
             transport = true;
         } else {
-            Circle thisCircle = circle;
-            int coordinateICircle = 0;
-            int coordinateJCircle = 0;
-            int coordinateIActivate = 0;
-            int coordinateJActivate = 0;
-
-            for (int i = 0; i < circles.length; i++) {
-                for (int j = 0; j < circles[i].length; j++) {
-                    if (circles[i][j] == thisCircle) {
-                        coordinateICircle = i;
-                        coordinateJCircle = j;
-                    }
-                    if (circles[i][j] == activateCircle) {
-                        coordinateIActivate = i;
-                        coordinateJActivate = j;
-                    }
-                }
-            }
-
             //механизм самой смены шаров
-            changeCircles(coordinateIActivate, coordinateJActivate, coordinateICircle,
-                    coordinateJCircle, circle);
+            changeCircles(activateCircle, thisCircle);
             transport = false;
         }
     }
 
     //смена шаров на соседние
-    private void changeCircles(int coordinateIActivate, int coordinateJActivate, int coordinateICircle, int coordinateJCircle,
-                               Circle circle) {
-        boolean down = (coordinateIActivate == coordinateICircle - 1) && (coordinateJActivate == coordinateJCircle);
-        boolean up = (coordinateIActivate == coordinateICircle + 1) && (coordinateJActivate == coordinateJCircle);
-        boolean left = (coordinateIActivate == coordinateICircle) && (coordinateJActivate == coordinateJCircle + 1);
-        boolean right = (coordinateIActivate == coordinateICircle) && (coordinateJActivate == coordinateJCircle - 1);
+    private void changeCircles(MyCircle activateCircle, MyCircle thisCircle) {
+        boolean down = (activateCircle.getI() == thisCircle.getI() - 1) && (activateCircle.getJ() == thisCircle.getJ());
+        boolean up = (activateCircle.getI() == thisCircle.getI() + 1) && (activateCircle.getJ() == thisCircle.getJ());
+        boolean left = (activateCircle.getI() == thisCircle.getI()) && (activateCircle.getJ() == thisCircle.getJ() + 1);
+        boolean right = (activateCircle.getI() == thisCircle.getI()) && (activateCircle.getJ() == thisCircle.getJ() - 1);
 
-        if (down || up || left || right) {
+        if (down || up || left || right) { //проверка на нижний, верхний, левый, правый шар
+            //визуальная смена кругов местами
+            double thisCircleXCenter = thisCircle.getCenterX();
+            double thisCircleYCenter = thisCircle.getCenterY();
+            thisCircle.setCenterX(activateCircle.getCenterX());
+            thisCircle.setCenterY(activateCircle.getCenterY());
+            activateCircle.setCenterX(thisCircleXCenter);
+            activateCircle.setCenterY(thisCircleYCenter);
+
             //смена кругов местами
-            double circleXCenter = circle.getCenterX();
-            double circleYCenter = circle.getCenterY();
-            circle.setCenterX(activateCircle.getCenterX());
-            circle.setCenterY(activateCircle.getCenterY());
-            activateCircle.setCenterX(circleXCenter);
-            activateCircle.setCenterY(circleYCenter);
-            circles[coordinateIActivate][coordinateJActivate] = circle;
-            circles[coordinateICircle][coordinateJCircle] = activateCircle;
+            int iOfThisCircle = thisCircle.getI();
+            int jOfThisCircle = thisCircle.getJ();
+            circles[activateCircle.getI()][activateCircle.getJ()] = thisCircle;
+            circles[iOfThisCircle][jOfThisCircle] = activateCircle;
+            thisCircle.setI(activateCircle.getI());
+            thisCircle.setJ(activateCircle.getJ());
+            activateCircle.setI(iOfThisCircle);
+            activateCircle.setJ(jOfThisCircle);
 
-            //смена цветов местами
-            Color colorActivateCircle = colorsOfCircles[coordinateIActivate][coordinateJActivate];
-            Color colorCircle = colorsOfCircles[coordinateICircle][coordinateJCircle];
-            colorsOfCircles[coordinateIActivate][coordinateJActivate] = colorCircle;
-            colorsOfCircles[coordinateICircle][coordinateJCircle] = colorActivateCircle;
             checkCirclesToDelete();
         }
+    }
+
+    private MyCircle getCircleByCoordinates(int i, int j) {
+        MyCircle circle = null;
+        for (int k = 0; k < circles.length; k++) {
+            for (int h = 0; h < circles[k].length; h++) {
+                if (circles[k][h].getI() == i && circles[k][h].getJ() == j) {
+                    circle = circles[k][h];
+                }
+            }
+        }
+        return circle;
     }
 
     //поиск шаров для удаления
     private void checkCirclesToDelete() {
         for (int i = 0; i < circles.length; i++) {
             for (int j = 0; j < circles[i].length; j++) {
-                checkRight(i, j);
-                checkDown(i, j);
+                checkRight(getCircleByCoordinates(i, j));
+                checkDown(getCircleByCoordinates(i, j));
             }
         }
     }
 
-    //возращает возможность на просмотр следующих шаров
-    private boolean canToCheck(Color color, int nextI, int nextJ) {
-        if ((nextI >= circles.length || nextI < 0) || (nextJ >= circles.length || nextJ < 0)) return false;
-        else {
-            if (color == colorsOfCircles[nextI][nextJ]) return true;
-            else return false;
-        }
-    }
-
     //просмотр правого элемента
-    private void checkRight(int i, int j) {
-        int nextIndex = j + 1;
-        if (canToCheck(colorsOfCircles[i][j], i, nextIndex)) {
-            circlesToDelete.add(circles[i][j]);
-            circlesToDelete.add(circles[i][nextIndex]);
+    private void checkRight(MyCircle circle) {
+        int nextIndex = circle.getJ() + 1;
+        if (canToCheck(circle.getColor(), circle.getI(), nextIndex)) {
+            circlesToDelete.add(circle);
+            circlesToDelete.add(circles[circle.getI()][nextIndex]);
             nextIndex++;
-            while (canToCheck(colorsOfCircles[i][j], i, nextIndex) == true) {
-                circlesToDelete.add(circles[i][nextIndex]);
+            while (canToCheck(circle.getColor(), circle.getI(), nextIndex) == true) {
+                circlesToDelete.add(getCircleByCoordinates(circle.getI(), nextIndex));
                 nextIndex++;
             }
             finishChange(circlesToDelete.size(), startGame);
@@ -190,14 +171,14 @@ public class Start extends Application {
     }
 
     //просмотр нижнего элемента
-    private void checkDown(int i, int j) {
-        int nextIndex = i + 1;
-        if (canToCheck(colorsOfCircles[i][j], nextIndex, j)) {
-            circlesToDelete.add(circles[i][j]);
-            circlesToDelete.add(circles[nextIndex][j]);
+    private void checkDown(MyCircle circle) {
+        int nextIndex = circle.getI() + 1;
+        if (canToCheck(circle.getColor(), nextIndex, circle.getJ())) {
+            circlesToDelete.add(circle);
+            circlesToDelete.add(circles[nextIndex][circle.getJ()]);
             nextIndex++;
-            while (canToCheck(colorsOfCircles[i][j], nextIndex, j) == true) {
-                circlesToDelete.add(circles[i][nextIndex]);
+            while (canToCheck(circle.getColor(), nextIndex, circle.getJ()) == true) {
+                circlesToDelete.add(circles[circle.getI()][nextIndex]);
                 nextIndex++;
             }
             finishChange(circlesToDelete.size(), startGame);
@@ -205,21 +186,24 @@ public class Start extends Application {
         }
     }
 
+    //возращает возможность на просмотр следующих шаров
+    private boolean canToCheck(Color color, int nextI, int nextJ) {
+        if ((nextI >= circles.length || nextI < 0) || (nextJ >= circles.length || nextJ < 0)) return false;
+        else {
+            if (color == getCircleByCoordinates(nextI, nextJ).getColor()) return true;
+            else return false;
+        }
+    }
+
     //проверка на кол-во шаров для удаления и само удаление
     private void finishChange(int sizeToDelete, boolean startGame) {
         if (sizeToDelete >= 3) {
-            for (Circle circle : circlesToDelete) {
-                for (int k = 0; k < colorsOfCircles.length; k++) {
-                    for (int h = 0; h < colorsOfCircles[k].length; h++) {
-                        if (circle == circles[k][h]) {
-                            colorsOfCircles[k][h] = randomColor();
-                            circle.setFill(colorsOfCircles[k][h]);
-                            if (startGame != true) {
-                                score += 10;
-                                scoreLabel.setText("Счёт - " + score);
-                            }
-                        }
-                    }
+            for (MyCircle circle : circlesToDelete) {
+                circle.setColor(randomColor());
+                circle.setFill(circle.getColor());
+                if (startGame != true) {
+                    score += 10;
+                    scoreLabel.setText("Счёт - " + score);
                 }
             }
             circlesToDelete.clear();
